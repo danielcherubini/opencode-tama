@@ -1,0 +1,181 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { normalizeBaseURL, buildAPIURL, formatModelName, parseModelCapabilities } from '../src/utils/koji-api'
+import type { KojiModel } from '../src/types'
+
+describe('koji-api utils', () => {
+  describe('normalizeBaseURL', () => {
+    it('removes trailing slashes', () => {
+      expect(normalizeBaseURL('http://localhost:11434/')).toBe('http://localhost:11434')
+    })
+
+    it('removes /v1 suffix', () => {
+      expect(normalizeBaseURL('http://localhost:11434/v1')).toBe('http://localhost:11434')
+    })
+
+    it('handles full URL with path', () => {
+      expect(normalizeBaseURL('http://localhost:11434/v1/')).toBe('http://localhost:11434')
+    })
+  })
+
+  describe('buildAPIURL', () => {
+    it('appends /koji/v1/opencode/models to base URL', () => {
+      expect(buildAPIURL('http://localhost:11434')).toBe('http://localhost:11434/koji/v1/opencode/models')
+    })
+
+    it('uses custom endpoint', () => {
+      expect(buildAPIURL('http://localhost:11434', '/v1/chat/completions')).toBe('http://localhost:11434/v1/chat/completions')
+    })
+  })
+
+  describe('formatModelName', () => {
+    it('uses name field if provided', () => {
+      const model: KojiModel = {
+        id: 'mudler/gemma-4-26b-a4b-it',
+        name: 'Gemma 4 26B',
+        context_length: 262144,
+      }
+      expect(formatModelName(model)).toBe('Gemma 4 26B')
+    })
+
+    it('extracts model name from ID when name not provided', () => {
+      const model: KojiModel = {
+        id: 'bartowski/OmniCoder-8B-GGUF',
+        context_length: 8192,
+      }
+      expect(formatModelName(model)).toBe('OmniCoder 8B GGUF')
+    })
+
+    it('handles simple model names', () => {
+      const model: KojiModel = {
+        id: 'llama3',
+      }
+      expect(formatModelName(model)).toBe('llama3')
+    })
+
+    it('replaces dashes and underscores with spaces', () => {
+      const model: KojiModel = {
+        id: 'qwen_qwen3-coder-30b',
+      }
+      expect(formatModelName(model)).toBe('qwen qwen3 coder 30b')
+    })
+  })
+
+  describe('parseModelCapabilities', () => {
+    it('extracts basic model config', () => {
+      const model: KojiModel = {
+        id: 'llama3',
+      }
+      const config = parseModelCapabilities(model)
+      expect(config.id).toBe('llama3')
+    })
+
+    it('extracts context_length', () => {
+      const model: KojiModel = {
+        id: 'llama3',
+        context_length: 8192,
+      }
+      const config = parseModelCapabilities(model)
+      expect(config.limit).toEqual({ context: 8192, output: 8192 })
+    })
+  })
+})
+
+describe('config hook', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should detect koji on default port', async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = { provider: {} }
+    await hook(config)
+
+    expect(config.provider.koji).toBeDefined()
+    expect(config.provider.koji.options.baseURL).toBe('http://127.0.0.1:11434/v1')
+  })
+
+  it('should use configured baseURL if provider exists', async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = {
+      provider: {
+        koji: {
+          options: { baseURL: 'http://localhost:8080/v1' },
+        },
+      },
+    }
+    await hook(config)
+
+    expect(config.provider.koji.options.baseURL).toBe('http://localhost:8080/v1')
+  })
+
+  it('should use KOJI_URL environment variable if configured', async () => {
+    process.env.KOJI_URL = 'http://env-koji:1234'
+    
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = { provider: {} }
+    await hook(config)
+
+    expect(config.provider.koji.options.baseURL).toBe('http://env-koji:1234/v1')
+    
+    delete process.env.KOJI_URL
+  })
+
+  it('should merge discovered models with existing', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          models: [
+            { id: 'mudler/gemma-4-26b-a4b-it', name: 'Gemma 4 26B', context_length: 262144 },
+            { id: 'mudler/Qwen3.5-35B-A3B-APEX-GGUF', name: 'Qwen3.5 35B', context_length: 262144 },
+          ],
+        }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = {
+      provider: {
+        koji: {
+          options: { baseURL: 'http://localhost:11434/v1' },
+          models: {
+            'manual-model': { name: 'Manual Model' },
+          },
+        },
+      },
+    }
+    await hook(config)
+
+    // Add models one by one to debug
+    // Regex [^a-zA-Z0-9_-] replaces / and . with _, so Qwen3.5-35B -> Qwen3_5-35B
+    expect(config.provider.koji.models['manual-model']).toEqual({ name: 'Manual Model' })
+    expect(config.provider.koji.models['mudler/gemma-4-26b-a4b-it']).toBeDefined()
+    expect(config.provider.koji.models['mudler/Qwen3.5-35B-A3B-APEX-GGUF']).toBeDefined()
+  })
+})

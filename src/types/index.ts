@@ -1,0 +1,40 @@
+export interface KojiModel {
+  id: string
+  name: string
+  model?: string
+  backend?: string
+  context_length?: number
+  limit?: {
+    context: number
+    output: number
+  }
+  modalities?: {
+    input: string[]
+    output: string[]
+  }
+  quant?: string
+  gpu_layers?: number
+}
+
+export interface KojiModelsResponse {
+  models: KojiModel[]
+}
+
+export interface KojiProviderConfig {
+  npm?: string
+  name?: string
+  options?: {
+    baseURL?: string
+    apiKey?: string
+  }
+  models?: Record<string, any>
+}
+
+export interface DiscoveredModel {
+  id: string
+  key: string
+  name: string
+  config: Record<string, any>
+}
+
+export type LoadingStatus = 'not_loaded' | 'loading' | 'loaded' | 'error'
