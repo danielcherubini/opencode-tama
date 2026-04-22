@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { normalizeBaseURL, buildAPIURL, formatModelName, parseModelCapabilities } from '../src/utils/koji-api'
 import type { KojiModel } from '../src/types'
 
@@ -81,8 +81,21 @@ describe('koji-api utils', () => {
 })
 
 describe('config hook', () => {
+  let savedKojiURL: string | undefined
+  let savedKojiToken: string | undefined
+
   beforeEach(() => {
     vi.clearAllMocks()
+    // Isolate from the developer's shell env — these vars leak into tests otherwise
+    savedKojiURL = process.env.KOJI_URL
+    savedKojiToken = process.env.KOJI_TOKEN
+    delete process.env.KOJI_URL
+    delete process.env.KOJI_TOKEN
+  })
+
+  afterEach(() => {
+    if (savedKojiURL !== undefined) process.env.KOJI_URL = savedKojiURL
+    if (savedKojiToken !== undefined) process.env.KOJI_TOKEN = savedKojiToken
   })
 
   it('should detect koji on default port', async () => {
@@ -142,6 +155,73 @@ describe('config hook', () => {
     expect(config.provider.koji.options.baseURL).toBe('http://env-koji:1234/v1')
     
     delete process.env.KOJI_URL
+  })
+
+  it('should send Authorization: Bearer when KOJI_TOKEN is set', async () => {
+    process.env.KOJI_TOKEN = 'secret-token'
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = { provider: {} }
+    await hook(config)
+
+    // Every fetch (auto-detect health + discover) should carry the bearer token
+    for (const call of mockFetch.mock.calls) {
+      const headers = call[1].headers as Record<string, string>
+      expect(headers.Authorization).toBe('Bearer secret-token')
+    }
+    expect(config.provider.koji.options.apiKey).toBe('secret-token')
+
+    delete process.env.KOJI_TOKEN
+  })
+
+  it('should use provider.options.apiKey when KOJI_TOKEN is unset', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = {
+      provider: {
+        koji: {
+          options: { baseURL: 'http://remote.example:11434/v1', apiKey: 'from-config' },
+        },
+      },
+    }
+    await hook(config)
+
+    const [, init] = mockFetch.mock.calls[0]!
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer from-config')
+  })
+
+  it('should not send Authorization header when no token is available', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { createConfigHook } = await import('../src/plugin/config-hook')
+    const hook = createConfigHook({} as any)
+
+    const config: any = { provider: {} }
+    await hook(config)
+
+    for (const call of mockFetch.mock.calls) {
+      const headers = (call[1]?.headers ?? {}) as Record<string, string>
+      expect(headers.Authorization).toBeUndefined()
+    }
   })
 
   it('should merge discovered models with existing', async () => {

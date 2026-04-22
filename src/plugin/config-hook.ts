@@ -32,12 +32,15 @@ export function createConfigHook(client: PluginInput['client']) {
     let kojiProvider = config.provider?.koji
     let baseURL: string
 
+    // Token priority: env var > provider.options.apiKey > undefined
+    const token = process.env.KOJI_TOKEN || kojiProvider?.options?.apiKey || undefined
+
     if (kojiProvider?.options?.baseURL) {
       baseURL = normalizeBaseURL(kojiProvider.options.baseURL)
     } else if (process.env.KOJI_URL) {
       baseURL = normalizeBaseURL(process.env.KOJI_URL)
     } else {
-      const detectedURL = await autoDetectKoji()
+      const detectedURL = await autoDetectKoji(token)
       if (!detectedURL) {
         console.log('[opencode-koji] Koji not detected on default ports (11434, 8080)')
         return
@@ -55,19 +58,22 @@ export function createConfigHook(client: PluginInput['client']) {
         name: "Koji (local)",
         options: {
           baseURL: `${baseURL}/v1`,
+          ...(token ? { apiKey: token } : {}),
         },
         models: {},
       }
       kojiProvider = config.provider.koji
+    } else if (token && !kojiProvider.options?.apiKey) {
+      kojiProvider.options = { ...(kojiProvider.options ?? {}), apiKey: token }
     }
 
-    const isHealthy = await checkKojiHealth(baseURL)
+    const isHealthy = await checkKojiHealth(baseURL, token)
     if (!isHealthy) {
       console.warn(`[opencode-koji] Koji appears offline at ${baseURL}`)
       return
     }
 
-    const models = await discoverKojiModels(baseURL)
+    const models = await discoverKojiModels(baseURL, token)
     if (models.length === 0) {
       console.warn('[opencode-koji] No models discovered - ensure koji serve is running')
       return

@@ -17,11 +17,16 @@ export function buildAPIURL(baseURL: string, endpoint: string = KOJI_OPENCODE_MO
   return `${normalized}${endpoint}`
 }
 
-export async function checkKojiHealth(baseURL: string = DEFAULT_KOJI_URL): Promise<boolean> {
+export function buildAuthHeaders(token?: string): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+export async function checkKojiHealth(baseURL: string = DEFAULT_KOJI_URL, token?: string): Promise<boolean> {
   try {
     const url = buildAPIURL(baseURL, KOJI_OPENCODE_MODELS_ENDPOINT)
     const response = await fetch(url, {
       method: "GET",
+      headers: buildAuthHeaders(token),
       signal: AbortSignal.timeout(3000),
     })
     return response.ok
@@ -30,19 +35,24 @@ export async function checkKojiHealth(baseURL: string = DEFAULT_KOJI_URL): Promi
   }
 }
 
-export async function discoverKojiModels(baseURL: string = DEFAULT_KOJI_URL): Promise<KojiModel[]> {
+export async function discoverKojiModels(baseURL: string = DEFAULT_KOJI_URL, token?: string): Promise<KojiModel[]> {
   try {
     const url = buildAPIURL(baseURL, KOJI_OPENCODE_MODELS_ENDPOINT)
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        ...buildAuthHeaders(token),
       },
       signal: AbortSignal.timeout(5000),
     })
 
     if (!response.ok) {
-      console.warn(`[opencode-koji] Koji returned ${response.status}: ${response.statusText}`)
+      if (response.status === 401 || response.status === 403) {
+        console.warn(`[opencode-koji] Koji rejected auth (${response.status}) — check KOJI_TOKEN`)
+      } else {
+        console.warn(`[opencode-koji] Koji returned ${response.status}: ${response.statusText}`)
+      }
       return []
     }
 
@@ -54,11 +64,11 @@ export async function discoverKojiModels(baseURL: string = DEFAULT_KOJI_URL): Pr
   }
 }
 
-export async function autoDetectKoji(): Promise<string | null> {
+export async function autoDetectKoji(token?: string): Promise<string | null> {
   const ports = [11434, 8080]
   for (const port of ports) {
     const baseURL = `http://127.0.0.1:${port}`
-    const isHealthy = await checkKojiHealth(baseURL)
+    const isHealthy = await checkKojiHealth(baseURL, token)
     if (isHealthy) {
       console.log(`[opencode-koji] Auto-detected koji at ${baseURL}`)
       return baseURL
