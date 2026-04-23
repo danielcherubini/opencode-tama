@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "opencode-koji",
+  "name": "opencode-tama",
   "version": "0.3.0",
-  "description": "OpenCode plugin for koji local AI server auto-discovery and model configuration",
+  "description": "OpenCode plugin for tama local AI server auto-discovery and model configuration",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
@@ -20,7 +20,7 @@
   },
   "keywords": [
     "opencode",
-    "koji",
+    "tama",
     "plugin",
     "local-llm",
     "openai-compatible"

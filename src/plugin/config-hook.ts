@@ -1,7 +1,7 @@
 import type { PluginInput } from '@opencode-ai/plugin'
-import { normalizeBaseURL, checkKojiHealth, discoverKojiModels, autoDetectKoji, formatModelName, parseModelCapabilities } from '../utils/koji-api'
+import { normalizeBaseURL, checkTamaHealth, discoverTamaModels, autoDetectTama, formatModelName, parseModelCapabilities } from '../utils/tama-api'
 
-const DEFAULT_KOJI_URL = "http://127.0.0.1:11434"
+const DEFAULT_TAMA_URL = "http://127.0.0.1:11434"
 
 interface ToastNotifier {
   info(message: string): Promise<void>
@@ -29,57 +29,57 @@ export function createConfigHook(client: PluginInput['client']) {
       return
     }
 
-    let kojiProvider = config.provider?.koji
+    let tamaProvider = config.provider?.tama
     let baseURL: string
 
     // Token priority: env var > provider.options.apiKey > undefined
-    const token = process.env.KOJI_TOKEN || kojiProvider?.options?.apiKey || undefined
+    const token = process.env.TAMA_TOKEN || tamaProvider?.options?.apiKey || undefined
 
-    if (kojiProvider?.options?.baseURL) {
-      baseURL = normalizeBaseURL(kojiProvider.options.baseURL)
-    } else if (process.env.KOJI_URL) {
-      baseURL = normalizeBaseURL(process.env.KOJI_URL)
+    if (tamaProvider?.options?.baseURL) {
+      baseURL = normalizeBaseURL(tamaProvider.options.baseURL)
+    } else if (process.env.TAMA_URL) {
+      baseURL = normalizeBaseURL(process.env.TAMA_URL)
     } else {
-      const detectedURL = await autoDetectKoji(token)
+      const detectedURL = await autoDetectTama(token)
       if (!detectedURL) {
-        console.log('[opencode-koji] Koji not detected on default ports (11434, 8080)')
+        console.log('[opencode-tama] Tama not detected on default ports (11434, 8080)')
         return
       }
       baseURL = detectedURL
     }
 
-    if (!kojiProvider) {
+    if (!tamaProvider) {
       if (!config.provider) {
         config.provider = {}
       }
 
-      config.provider.koji = {
+      config.provider.tama = {
         npm: "@ai-sdk/openai-compatible",
-        name: "Koji (local)",
+        name: "Tama (local)",
         options: {
           baseURL: `${baseURL}/v1`,
           ...(token ? { apiKey: token } : {}),
         },
         models: {},
       }
-      kojiProvider = config.provider.koji
-    } else if (token && !kojiProvider.options?.apiKey) {
-      kojiProvider.options = { ...(kojiProvider.options ?? {}), apiKey: token }
+      tamaProvider = config.provider.tama
+    } else if (token && !tamaProvider.options?.apiKey) {
+      tamaProvider.options = { ...(tamaProvider.options ?? {}), apiKey: token }
     }
 
-    const isHealthy = await checkKojiHealth(baseURL, token)
+    const isHealthy = await checkTamaHealth(baseURL, token)
     if (!isHealthy) {
-      console.warn(`[opencode-koji] Koji appears offline at ${baseURL}`)
+      console.warn(`[opencode-tama] Tama appears offline at ${baseURL}`)
       return
     }
 
-    const models = await discoverKojiModels(baseURL, token)
+    const models = await discoverTamaModels(baseURL, token)
     if (models.length === 0) {
-      console.warn('[opencode-koji] No models discovered - ensure koji serve is running')
+      console.warn('[opencode-tama] No models discovered - ensure tama serve is running')
       return
     }
 
-    const existingModels = kojiProvider.models || {}
+    const existingModels = tamaProvider.models || {}
     const discoveredModels: Record<string, any> = {}
 
     for (const model of models) {
@@ -95,13 +95,13 @@ export function createConfigHook(client: PluginInput['client']) {
     }
 
     if (Object.keys(discoveredModels).length > 0) {
-      config.provider.koji.models = {
+      config.provider.tama.models = {
         ...existingModels,
         ...discoveredModels,
       }
-      console.log(`[opencode-koji] Discovered ${Object.keys(discoveredModels).length} models`)
+      console.log(`[opencode-tama] Discovered ${Object.keys(discoveredModels).length} models`)
     }
 
-    await toastNotifier.info(`Loaded ${models.length} models from koji`)
+    await toastNotifier.info(`Loaded ${models.length} models from tama`)
   }
 }

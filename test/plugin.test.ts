@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { normalizeBaseURL, buildAPIURL, formatModelName, parseModelCapabilities } from '../src/utils/koji-api'
-import type { KojiModel } from '../src/types'
+import { normalizeBaseURL, buildAPIURL, formatModelName, parseModelCapabilities } from '../src/utils/tama-api'
+import type { TamaModel } from '../src/types'
 
-describe('koji-api utils', () => {
+describe('tama-api utils', () => {
   describe('normalizeBaseURL', () => {
     it('removes trailing slashes', () => {
       expect(normalizeBaseURL('http://localhost:11434/')).toBe('http://localhost:11434')
@@ -18,8 +18,8 @@ describe('koji-api utils', () => {
   })
 
   describe('buildAPIURL', () => {
-    it('appends /koji/v1/opencode/models to base URL', () => {
-      expect(buildAPIURL('http://localhost:11434')).toBe('http://localhost:11434/koji/v1/opencode/models')
+    it('appends /tama/v1/opencode/models to base URL', () => {
+      expect(buildAPIURL('http://localhost:11434')).toBe('http://localhost:11434/tama/v1/opencode/models')
     })
 
     it('uses custom endpoint', () => {
@@ -29,7 +29,7 @@ describe('koji-api utils', () => {
 
   describe('formatModelName', () => {
     it('uses name field if provided', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'mudler/gemma-4-26b-a4b-it',
         name: 'Gemma 4 26B',
         context_length: 262144,
@@ -38,7 +38,7 @@ describe('koji-api utils', () => {
     })
 
     it('extracts model name from ID when name not provided', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'bartowski/OmniCoder-8B-GGUF',
         context_length: 8192,
       }
@@ -46,14 +46,14 @@ describe('koji-api utils', () => {
     })
 
     it('handles simple model names', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'llama3',
       }
       expect(formatModelName(model)).toBe('llama3')
     })
 
     it('replaces dashes and underscores with spaces', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'qwen_qwen3-coder-30b',
       }
       expect(formatModelName(model)).toBe('qwen qwen3 coder 30b')
@@ -62,7 +62,7 @@ describe('koji-api utils', () => {
 
   describe('parseModelCapabilities', () => {
     it('extracts basic model config', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'llama3',
       }
       const config = parseModelCapabilities(model)
@@ -70,7 +70,7 @@ describe('koji-api utils', () => {
     })
 
     it('extracts context_length', () => {
-      const model: KojiModel = {
+      const model: TamaModel = {
         id: 'llama3',
         context_length: 8192,
       }
@@ -81,24 +81,24 @@ describe('koji-api utils', () => {
 })
 
 describe('config hook', () => {
-  let savedKojiURL: string | undefined
-  let savedKojiToken: string | undefined
+  let savedTamaURL: string | undefined
+  let savedTamaToken: string | undefined
 
   beforeEach(() => {
     vi.clearAllMocks()
     // Isolate from the developer's shell env — these vars leak into tests otherwise
-    savedKojiURL = process.env.KOJI_URL
-    savedKojiToken = process.env.KOJI_TOKEN
-    delete process.env.KOJI_URL
-    delete process.env.KOJI_TOKEN
+    savedTamaURL = process.env.TAMA_URL
+    savedTamaToken = process.env.TAMA_TOKEN
+    delete process.env.TAMA_URL
+    delete process.env.TAMA_TOKEN
   })
 
   afterEach(() => {
-    if (savedKojiURL !== undefined) process.env.KOJI_URL = savedKojiURL
-    if (savedKojiToken !== undefined) process.env.KOJI_TOKEN = savedKojiToken
+    if (savedTamaURL !== undefined) process.env.TAMA_URL = savedTamaURL
+    if (savedTamaToken !== undefined) process.env.TAMA_TOKEN = savedTamaToken
   })
 
-  it('should detect koji on default port', async () => {
+  it('should detect tama on default port', async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ models: [] }),
@@ -111,8 +111,8 @@ describe('config hook', () => {
     const config: any = { provider: {} }
     await hook(config)
 
-    expect(config.provider.koji).toBeDefined()
-    expect(config.provider.koji.options.baseURL).toBe('http://127.0.0.1:11434/v1')
+    expect(config.provider.tama).toBeDefined()
+    expect(config.provider.tama.options.baseURL).toBe('http://127.0.0.1:11434/v1')
   })
 
   it('should use configured baseURL if provider exists', async () => {
@@ -127,18 +127,18 @@ describe('config hook', () => {
 
     const config: any = {
       provider: {
-        koji: {
+        tama: {
           options: { baseURL: 'http://localhost:8080/v1' },
         },
       },
     }
     await hook(config)
 
-    expect(config.provider.koji.options.baseURL).toBe('http://localhost:8080/v1')
+    expect(config.provider.tama.options.baseURL).toBe('http://localhost:8080/v1')
   })
 
-  it('should use KOJI_URL environment variable if configured', async () => {
-    process.env.KOJI_URL = 'http://env-koji:1234'
+  it('should use TAMA_URL environment variable if configured', async () => {
+    process.env.TAMA_URL = 'http://env-tama:1234'
     
     const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
@@ -152,13 +152,13 @@ describe('config hook', () => {
     const config: any = { provider: {} }
     await hook(config)
 
-    expect(config.provider.koji.options.baseURL).toBe('http://env-koji:1234/v1')
+    expect(config.provider.tama.options.baseURL).toBe('http://env-tama:1234/v1')
     
-    delete process.env.KOJI_URL
+    delete process.env.TAMA_URL
   })
 
-  it('should send Authorization: Bearer when KOJI_TOKEN is set', async () => {
-    process.env.KOJI_TOKEN = 'secret-token'
+  it('should send Authorization: Bearer when TAMA_TOKEN is set', async () => {
+    process.env.TAMA_TOKEN = 'secret-token'
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -177,12 +177,12 @@ describe('config hook', () => {
       const headers = call[1].headers as Record<string, string>
       expect(headers.Authorization).toBe('Bearer secret-token')
     }
-    expect(config.provider.koji.options.apiKey).toBe('secret-token')
+    expect(config.provider.tama.options.apiKey).toBe('secret-token')
 
-    delete process.env.KOJI_TOKEN
+    delete process.env.TAMA_TOKEN
   })
 
-  it('should use provider.options.apiKey when KOJI_TOKEN is unset', async () => {
+  it('should use provider.options.apiKey when TAMA_TOKEN is unset', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ models: [] }),
@@ -194,7 +194,7 @@ describe('config hook', () => {
 
     const config: any = {
       provider: {
-        koji: {
+        tama: {
           options: { baseURL: 'http://remote.example:11434/v1', apiKey: 'from-config' },
         },
       },
@@ -242,7 +242,7 @@ describe('config hook', () => {
 
     const config: any = {
       provider: {
-        koji: {
+        tama: {
           options: { baseURL: 'http://localhost:11434/v1' },
           models: {
             'manual-model': { name: 'Manual Model' },
@@ -254,8 +254,8 @@ describe('config hook', () => {
 
     // Add models one by one to debug
     // Regex [^a-zA-Z0-9_-] replaces / and . with _, so Qwen3.5-35B -> Qwen3_5-35B
-    expect(config.provider.koji.models['manual-model']).toEqual({ name: 'Manual Model' })
-    expect(config.provider.koji.models['mudler/gemma-4-26b-a4b-it']).toBeDefined()
-    expect(config.provider.koji.models['mudler/Qwen3.5-35B-A3B-APEX-GGUF']).toBeDefined()
+    expect(config.provider.tama.models['manual-model']).toEqual({ name: 'Manual Model' })
+    expect(config.provider.tama.models['mudler/gemma-4-26b-a4b-it']).toBeDefined()
+    expect(config.provider.tama.models['mudler/Qwen3.5-35B-A3B-APEX-GGUF']).toBeDefined()
   })
 })

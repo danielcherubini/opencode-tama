@@ -1,1 +1,1 @@
-export { KojiPlugin } from './plugin'
+export { TamaPlugin } from './plugin'

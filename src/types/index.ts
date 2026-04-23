@@ -1,4 +1,4 @@
-export interface KojiModel {
+export interface TamaModel {
   id: string
   name: string
   model?: string
@@ -16,11 +16,11 @@ export interface KojiModel {
   gpu_layers?: number
 }
 
-export interface KojiModelsResponse {
-  models: KojiModel[]
+export interface TamaModelsResponse {
+  models: TamaModel[]
 }
 
-export interface KojiProviderConfig {
+export interface TamaProviderConfig {
   npm?: string
   name?: string
   options?: {
