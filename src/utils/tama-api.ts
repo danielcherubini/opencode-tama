@@ -1,7 +1,7 @@
 import type { TamaModel, TamaModelsResponse } from '../types'
 
 const DEFAULT_TAMA_URL = "http://localhost:11434"
-const TAMA_OPENCODE_MODELS_ENDPOINT = "/tama/v1/opencode/models"
+const TAMA_OPENCODE_MODELS_ENDPOINT = "/v1/opencode/models"
 const TAMA_V1_MODELS_ENDPOINT = "/v1/models"
 
 export function normalizeBaseURL(baseURL: string = DEFAULT_TAMA_URL): string {

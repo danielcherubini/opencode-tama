@@ -18,8 +18,8 @@ describe('tama-api utils', () => {
   })
 
   describe('buildAPIURL', () => {
-    it('appends /tama/v1/opencode/models to base URL', () => {
-      expect(buildAPIURL('http://localhost:11434')).toBe('http://localhost:11434/tama/v1/opencode/models')
+    it('appends /v1/opencode/models to base URL', () => {
+      expect(buildAPIURL('http://localhost:11434')).toBe('http://localhost:11434/v1/opencode/models')
     })
 
     it('uses custom endpoint', () => {

@@ -5,7 +5,7 @@ Auto-discovers models from [Tama](https://github.com/danielcherubini/tama) local
 ## Features
 
 - **Auto-detection**: Finds tama running on default ports (11434, 8080)
-- **Model Discovery**: Queries `/tama/v1/opencode/models` for rich model metadata
+- **Model Discovery**: Queries `/v1/opencode/models` for rich model metadata
 - **Configuration Enhancement**: Adds model metadata (context limits, name, etc.)
 - **Graceful Fallback**: Works even if tama is offline
 
@@ -82,7 +82,7 @@ The token is sent as `Authorization: Bearer <token>` on both model discovery and
 
 1. On opencode startup, the `config` hook is called
 2. Plugin checks for existing `tama` provider or auto-detects on default ports
-3. Queries `GET /tama/v1/opencode/models` from tama
+3. Queries `GET /v1/opencode/models` from tama
 4. Merges discovered models into opencode's configuration
 5. Models appear in `/models` list automatically
 
