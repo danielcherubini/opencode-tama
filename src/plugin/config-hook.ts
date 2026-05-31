@@ -42,7 +42,6 @@ export function createConfigHook(client: PluginInput['client']) {
     } else {
       const detectedURL = await autoDetectTama(token)
       if (!detectedURL) {
-        console.log('[opencode-tama] Tama not detected on default ports (11434, 8080)')
         return
       }
       baseURL = detectedURL
@@ -99,7 +98,6 @@ export function createConfigHook(client: PluginInput['client']) {
         ...existingModels,
         ...discoveredModels,
       }
-      console.log(`[opencode-tama] Discovered ${Object.keys(discoveredModels).length} models`)
     }
 
     await toastNotifier.info(`Loaded ${models.length} models from tama`)
