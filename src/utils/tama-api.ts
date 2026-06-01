@@ -104,5 +104,11 @@ export function parseModelCapabilities(model: TamaModel): Record<string, any> {
     config.modalities = model.modalities
   }
 
+  // Capability flags from tama's /v1/opencode/models
+  config.tool_call = model.tool_call ?? true
+  config.reasoning = model.reasoning ?? false
+  config.attachment = model.attachment ?? false
+  config.temperature = model.temperature ?? true
+
   return config
 }

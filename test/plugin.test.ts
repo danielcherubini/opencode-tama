@@ -77,6 +77,32 @@ describe('tama-api utils', () => {
       const config = parseModelCapabilities(model)
       expect(config.limit).toEqual({ context: 8192, output: 8192 })
     })
+
+    it('sets capability flags from model data', () => {
+      const model: TamaModel = {
+        id: 'test-model',
+        tool_call: true,
+        reasoning: true,
+        attachment: true,
+        temperature: true,
+      }
+      const config = parseModelCapabilities(model)
+      expect(config.tool_call).toBe(true)
+      expect(config.reasoning).toBe(true)
+      expect(config.attachment).toBe(true)
+      expect(config.temperature).toBe(true)
+    })
+
+    it('defaults capability flags when not provided', () => {
+      const model: TamaModel = {
+        id: 'test-model',
+      }
+      const config = parseModelCapabilities(model)
+      expect(config.tool_call).toBe(true)
+      expect(config.reasoning).toBe(false)
+      expect(config.attachment).toBe(false)
+      expect(config.temperature).toBe(true)
+    })
   })
 })
 

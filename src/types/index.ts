@@ -14,6 +14,10 @@ export interface TamaModel {
   }
   quant?: string
   gpu_layers?: number
+  tool_call?: boolean
+  reasoning?: boolean
+  attachment?: boolean
+  temperature?: boolean
 }
 
 export interface TamaModelsResponse {
