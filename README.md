@@ -39,7 +39,7 @@ If you want to use a custom tama instance:
   "provider": {
     "tama": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Tama (local)",
+      "name": "Tama",
       "options": {
         "baseURL": "http://localhost:11434/v1"
       }

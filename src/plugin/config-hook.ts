@@ -54,7 +54,7 @@ export function createConfigHook(client: PluginInput['client']) {
 
       config.provider.tama = {
         npm: "@ai-sdk/openai-compatible",
-        name: "Tama (local)",
+        name: "Tama",
         options: {
           baseURL: `${baseURL}/v1`,
           ...(token ? { apiKey: token } : {}),
